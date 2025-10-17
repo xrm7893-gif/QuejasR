@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuejasRD</title>
+<style>
+    body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #c8102e 0%, #ffffff 50%, #00209f 100%);
+        color: #000;
+    }
+    header {
+        background-color: #00209f;
+        color: white;
+        padding: 25px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+    header h1 { margin: 0; font-size: 2em; }
+    main { max-width: 900px; margin: auto; padding: 20px; background: white; border-radius: 15px; margin-top: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    h2 { color: #c8102e; }
+    form { display: flex; flex-direction: column; }
+    input, textarea { padding: 10px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
+    input[type="file"] { padding: 5px; }
+    button { background-color: #c8102e; color: white; border: none; padding: 12px; font-size: 18px; border-radius: 8px; cursor: pointer; transition: 0.3s; }
+    button:hover { background-color: #a00; }
+    .quejas { margin-top: 30px; }
+    .queja { border: 2px solid #00209f; border-radius: 10px; padding: 15px; margin-bottom: 15px; background: #f9f9f9; }
+    .queja img { max-width: 100%; margin-top: 10px; border-radius: 8px; }
+    footer { background-color: #00209f; color: white; text-align: center; padding: 20px; margin-top: 30px; border-top: 5px solid #c8102e; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>QuejasRD</h1>
+    <p>Comparte tus quejas como buen dominicano 🇩🇴</p>
+</header>
+
+<main>
+    <h2>Publica tu queja</h2>
+    <form id="quejaForm">
+        <input type="text" id="nombre" placeholder="Tu nombre" required>
+        <textarea id="mensaje" placeholder="Escribe tu queja aquí..." rows="4" required></textarea>
+        <input type="file" id="imagen" accept="image/*">
+        <button type="submit">Enviar Queja</button>
+    </form>
+
+    <div class="quejas" id="listaQuejas">
+        <h2>Quejas Recientes</h2>
+    </div>
+</main>
+
+<footer>
+    Esta web fue creada con ayuda de inteligencia artificial por Fuen, un niño de la República Dominicana.
+</footer>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+<script>
+    // CONFIGURACIÓN DE TU PROYECTO FIREBASE
+    const firebaseConfig = {
+        apiKey: "TU_API_KEY",
+        authDomain: "TU_PROJECT_ID.firebaseapp.com",
+        projectId: "TU_PROJECT_ID",
+        storageBucket: "TU_PROJECT_ID.appspot.com",
+        messagingSenderId: "TU_SENDER_ID",
+        appId: "TU_APP_ID"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    const form = document.getElementById('quejaForm');
+    const lista = document.getElementById('listaQuejas');
+
+    // Función para escapar texto y evitar código malicioso
+    function escapeHTML(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Enviar queja
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const nombre = escapeHTML(document.getElementById('nombre').value);
+        const mensaje = escapeHTML(document.getElementById('mensaje').value);
+        const file = document.getElementById('imagen').files[0];
+
+        let imageURL = "";
+        if(file){
+            const storageRef = storage.ref('imagenes/' + Date.now() + '_' + file.name);
+            await storageRef.put(file);
+            imageURL = await storageRef.getDownloadURL();
+        }
+
+        db.collection("quejas").add({
+            nombre: nombre,
+            mensaje: mensaje,
+            imagen: imageURL,
+            fecha: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(() => form.reset());
+    });
+
+    // Mostrar quejas en tiempo real
+    db.collection("quejas").orderBy("fecha", "desc").onSnapshot(snapshot => {
+        lista.innerHTML = '<h2>Quejas Recientes</h2>';
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const div = document.createElement('div');
+            div.className = 'queja';
+            div.innerHTML = `<strong>${data.nombre}:</strong><p>${data.mensaje}</p>`;
+            if(data.imagen) div.innerHTML += `<img src="${data.imagen}" alt="Imagen">`;
+            lista.appendChild(div);
+        });
+    });
+</script>
+
+</body>
+</html>
